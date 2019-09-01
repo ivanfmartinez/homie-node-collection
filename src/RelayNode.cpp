@@ -27,11 +27,17 @@ RelayNode::RelayNode(const char *name, const int relayPin, const int ledPin)
   _ledPin = ledPin;
 }
 
+#define IS_INTEGER(s) ( s == String(s.toInt()) )
+
 bool RelayNode::handleInput(const String &property, const HomieRange &range, const String &value)
 {
   Homie.getLogger() << "Message: " << property << " " << value << endl;
   if (property == "on") {
-    if (value != "true" && value != "false") {
+    if (value != "true" && value != "false" && !IS_INTEGER(value)) {
+      return false;
+    }
+
+    if (IS_INTEGER(value)) {
       long t = value.toInt();
       if (t == 0)
         return false;
@@ -39,8 +45,14 @@ bool RelayNode::handleInput(const String &property, const HomieRange &range, con
     } else {
       setRelay(value == "true");
     }
-  } else if (property == "timeout") {
-    timeout = value.toInt();
+
+  } else if (property == "timeout" && IS_INTEGER(value)) {
+    // reset timeout for the active relay
+    if (readRelayState()) {
+      setRelay(true, value.toInt());
+    }
+  } else {
+    return false;
   }
   return true;
 }
@@ -123,7 +135,7 @@ int RelayNode::getRelayPin() {
 void RelayNode::setup()
 {
   advertise("on").settable();
-  advertise("timeout");
+  advertise("timeout").settable();
   
   printCaption();
 
