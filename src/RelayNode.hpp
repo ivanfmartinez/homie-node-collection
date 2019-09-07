@@ -20,6 +20,7 @@ private:
 
   int _relayPin;
   int _ledPin;
+  bool _reverseSignal;
 
   void printCaption();
   void setLed(bool on);
@@ -27,6 +28,10 @@ private:
 protected:
   int getRelayPin();
   long timeout;
+  /** as the property must have an constant value keep strings here **/
+  String relayOnLimitPropertyName; 
+  String relayOnLimitPropertyDescription;
+  HomieSetting<long> *relayOnLimit;
   virtual void setup() override;
   virtual void loop() override;
   virtual bool handleInput(const String &property, const HomieRange &range, const String &value) override;
@@ -34,11 +39,17 @@ protected:
   virtual bool readRelayState();
   virtual void setupRelay();
   void setRelay(bool on, long timeoutSecs);
+  int relayOnValue();
+  int relayOffValue();
 
 public:
-  RelayNode(const char *name, const int relayPin = DEFAULTPIN, const int ledPin = DEFAULTPIN);
+  RelayNode(const char *name, const int relayPin = DEFAULTPIN, const int ledPin = DEFAULTPIN, const bool reverseSignal = false);
   void setRelay(bool on);
   void toggleRelay();
+  /** 
+   * should be called before setup relay timeout wanted 
+   * the globalDefaultLimit will be used only in the first call for this function
+   **/
+  void beforeHomieSetup(const long defaultGlobalLimit, const long defaultLimit);
 };
 
-void relayBeforeHomieSetup();

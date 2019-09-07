@@ -9,22 +9,38 @@
 #include "RelayNode.hpp"
 
 
-HomieSetting<long> relayOnLimit("relayOnLimit", "maximum time in seconds to keep relay in on state (0 disable) ");
+HomieSetting<long> *globalRelayOnLimit;
 
-void relayBeforeHomieSetup() 
+
+void RelayNode::beforeHomieSetup(const long defaultGlobalLimit, const long defaultLimit) 
 {
-  relayOnLimit.setDefaultValue(0).setValidator([] (long candidate) {
-    return (candidate >= 0);
-  });
+
+  if ((globalRelayOnLimit == NULL) && (defaultGlobalLimit >= 0)) {
+      globalRelayOnLimit = new HomieSetting<long>("relayOnLimit", "maximum time in seconds to keep relay(s) in 'on' state (0 disable) - relayOnLimit");
+      globalRelayOnLimit->setDefaultValue(defaultGlobalLimit).setValidator([] (long candidate) {
+        return (candidate >= 0);
+      });
+  }
+
+  if ((relayOnLimit == NULL) && (defaultLimit >= -1)) {
+      relayOnLimitPropertyName = String(getId()) + "_OnLimit";
+      relayOnLimitPropertyDescription = "maximum time in seconds to keep the specific relay '" + String(getId()) + "' in 'on' state (-1 disable, 0 use relayOnLimit)";
+      relayOnLimit = new HomieSetting<long>(relayOnLimitPropertyName.c_str(), relayOnLimitPropertyDescription.c_str());
+      relayOnLimit->setDefaultValue(defaultLimit).setValidator([] (long candidate) {
+        return (candidate >= -1);
+      });
+  }
+
 }
 
 HomieInternals::Uptime relayUptime;
 
-RelayNode::RelayNode(const char *name, const int relayPin, const int ledPin)
+RelayNode::RelayNode(const char *name, const int relayPin, const int ledPin, const bool reverseSignal)
     : HomieNode(name, "RelayNode")
 {
   _relayPin = relayPin;
   _ledPin = ledPin;
+  _reverseSignal = reverseSignal;
 }
 
 #define IS_INTEGER(s) ( s == String(s.toInt()) )
@@ -70,14 +86,24 @@ void RelayNode::setLed(bool on)
   }
 }
 
+int RelayNode::relayOnValue() {
+  return (reverse) ? LOW : HIGH;
+}
+
+int RelayNode::relayOffValue() {
+  return (reverse) ? HIGH : LOW;
+}
+
 void RelayNode::setRelayState(bool on)
 {
-    digitalWrite(_relayPin, on ? HIGH : LOW); // HIGH = close relay
+    digitalWrite(_relayPin, on ? relayOnValue() : relayOffValue()); 
 }
 
 void RelayNode::setRelay(bool on)
 {
-    setRelay(on, relayOnLimit.get());
+    long limit = (relayOnLimit != NULL) ? relayOnLimit->get() : 0;
+    long globalLimit = (globalRelayOnLimit != NULL) ? globalRelayOnLimit->get() : 0;
+    setRelay(on, (limit < 0) ? 0 : (limit > 0 ? limit : globalLimit) );
 }
 
 void RelayNode::setRelay(bool on, long timeoutSecs)
@@ -106,7 +132,7 @@ void RelayNode::setRelay(bool on, long timeoutSecs)
 
 bool RelayNode::readRelayState() 
 {
-    return digitalRead(_relayPin) == HIGH;
+    return digitalRead(_relayPin) == relayOnValue();
 }
 
 void RelayNode::toggleRelay()
@@ -125,7 +151,6 @@ void RelayNode::toggleRelay()
 void RelayNode::setupRelay() 
 {
     pinMode(_relayPin, OUTPUT);
-    digitalWrite(_relayPin, LOW);
 }
 
 int RelayNode::getRelayPin() {
@@ -151,6 +176,7 @@ void RelayNode::setup()
   if (_relayPin > DEFAULTPIN)
   {
     setupRelay();
+    setRelay(false);
   }
 }
 
