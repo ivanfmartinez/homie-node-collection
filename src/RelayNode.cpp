@@ -40,7 +40,13 @@ RelayNode::RelayNode(const char *name, const int relayPin, const int ledPin, con
 {
   _relayPin = relayPin;
   _ledPin = ledPin;
-  _reverseSignal = reverseSignal;
+  if (reverseSignal) {
+    relayOnValue = LOW;
+    relayOffValue = HIGH;
+  } else {
+    relayOnValue = HIGH;
+    relayOffValue = LOW;
+  }
 }
 
 #define IS_INTEGER(s) ( s == String(s.toInt()) )
@@ -86,17 +92,9 @@ void RelayNode::setLed(bool on)
   }
 }
 
-int RelayNode::relayOnValue() {
-  return (reverse) ? LOW : HIGH;
-}
-
-int RelayNode::relayOffValue() {
-  return (reverse) ? HIGH : LOW;
-}
-
 void RelayNode::setRelayState(bool on)
 {
-    digitalWrite(_relayPin, on ? relayOnValue() : relayOffValue()); 
+    digitalWrite(_relayPin, on ? relayOnValue : relayOffValue); 
 }
 
 void RelayNode::setRelay(bool on)
@@ -104,6 +102,12 @@ void RelayNode::setRelay(bool on)
     long limit = (relayOnLimit != NULL) ? relayOnLimit->get() : 0;
     long globalLimit = (globalRelayOnLimit != NULL) ? globalRelayOnLimit->get() : 0;
     setRelay(on, (limit < 0) ? 0 : (limit > 0 ? limit : globalLimit) );
+}
+
+void RelayNode::sendState()
+{
+    setProperty("on").send(readRelayState() ? "true" : "false");
+    setProperty("timeout").send(String(timeout));
 }
 
 void RelayNode::setRelay(bool on, long timeoutSecs)
@@ -114,14 +118,13 @@ void RelayNode::setRelay(bool on, long timeoutSecs)
   if (_relayPin > DEFAULTPIN)
   {
     setRelayState(on);
-    setProperty("on").send(on ? "true" : "false");
     Homie.getLogger() << cIndent << "Relay is " << (on ? "on" : "off") << endl;
     if (on && timeoutSecs > 0) {
       timeout = relayUptime.getSeconds() + timeoutSecs;
     } else {
       timeout = 0;
     }
-    setProperty("timeout").send(String(timeout));
+    sendState();
   }
   else
   {
@@ -132,7 +135,7 @@ void RelayNode::setRelay(bool on, long timeoutSecs)
 
 bool RelayNode::readRelayState() 
 {
-    return digitalRead(_relayPin) == relayOnValue();
+    return digitalRead(_relayPin) == relayOnValue;
 }
 
 void RelayNode::toggleRelay()
