@@ -21,8 +21,6 @@ private:
   int _relayPin;
   int _ledPin;
 
-  uint8_t _relayOnValue;
-  uint8_t _relayOffValue;
   uint64_t _timeout;
 
   bool handleOnOff(const String &value);
@@ -30,13 +28,17 @@ private:
 
   void printCaption();
 
-  void setupRelay();
-  bool getRelayState();
-  void setRelayState(bool on);
 
   void setLed(bool on);
 
 protected:
+  uint8_t _relayOnValue;
+  uint8_t _relayOffValue;
+  uint8_t getRelayPin();
+  virtual void setupRelay();
+  virtual bool getRelayState();
+  virtual void setRelayState(bool on);
+
   virtual bool handleInput(const HomieRange &range, const String &property, const String &value) override;
   virtual void setup() override;
   virtual void loop() override;

@@ -134,6 +134,11 @@ void RelayNode::setRelayState(bool on)
   digitalWrite(_relayPin, on ? _relayOnValue : _relayOffValue);
 }
 
+uint8_t RelayNode::getRelayPin()
+{
+  return _relayPin;
+}
+
 bool RelayNode::getRelayState()
 {
   return digitalRead(_relayPin) == _relayOnValue;
